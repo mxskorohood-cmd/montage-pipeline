@@ -19,7 +19,7 @@ def fmt_t(sec):
     return f"{m:02d}:{s:02d}"
 
 
-lines = ["# Ревью вырезок — source", ""]
+lines = [f"# Ревью вырезок — {work.name}", ""]
 lines.append(
     f"Исходник {fmt_t(edl['source_duration'])} -> итог {fmt_t(edl['kept_duration'])} "
     f"({len(edl['segments'])} сегментов). Ниже — что вырезано и почему.\n"

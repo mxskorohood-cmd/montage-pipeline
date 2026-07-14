@@ -186,7 +186,6 @@ const AccentCaption: React.FC<{ text: string; durationInFrames: number }> = ({
 }) => {
   const frame = useCurrentFrame();
   const typed = Math.min(text.length, Math.floor(frame / CHAR_FRAMES) + 1);
-  const cursorOn = Math.floor(frame / 8) % 2 === 0;
   const opacity = interpolate(
     frame,
     [durationInFrames - 8, durationInFrames - 1],
@@ -201,7 +200,7 @@ const AccentCaption: React.FC<{ text: string; durationInFrames: number }> = ({
         style={{
           marginBottom: 96,
           fontFamily: brandFontFamily,
-          fontSize: 54,
+          fontSize: 81,
           color: "#F5F5F5",
           letterSpacing: "0.04em",
           whiteSpace: "pre",
@@ -209,17 +208,6 @@ const AccentCaption: React.FC<{ text: string; durationInFrames: number }> = ({
         }}
       >
         {text.slice(0, typed)}
-        <span
-          style={{
-            display: "inline-block",
-            width: "0.45em",
-            height: "0.95em",
-            marginLeft: 10,
-            verticalAlign: "text-bottom",
-            backgroundColor: "#E5484D",
-            opacity: cursorOn ? 1 : 0,
-          }}
-        />
       </div>
       {Array.from(text).map((ch, i) =>
         ch === " " || i >= Math.ceil(durationInFrames / CHAR_FRAMES) ? null : (

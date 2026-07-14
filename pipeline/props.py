@@ -72,7 +72,7 @@ def load(work: Path, name: str):
     return json.loads((work / name).read_text(encoding="utf-8"))
 
 
-def build(work: Path, out_path: Path):
+def build(work: Path, out_path: Path, media: str = "source"):
     edl = load(work, "edl.json")
     faces = load(work, "faces.json")
     accents = load(work, "accents.json")["accents"]
@@ -223,10 +223,10 @@ def build(work: Path, out_path: Path):
         {"start": s, "end": e} for s, e in merge_windows(pip_base, PIP_MERGE_GAP_F)
     ]
 
-    preview_proxy = out_path.parent.parent / "public" / "source_preview.mp4"
+    preview_proxy = out_path.parent.parent / "public" / f"{media}_preview.mp4"
     props = {
-        "src": "source.mp4",
-        "previewSrc": "source_preview.mp4" if preview_proxy.exists() else None,
+        "src": f"{media}.mp4",
+        "previewSrc": f"{media}_preview.mp4" if preview_proxy.exists() else None,
         "fps": fps,
         "segments": segments,
         "accents": accent_events,
@@ -236,7 +236,9 @@ def build(work: Path, out_path: Path):
         "pipWindows": pip_windows,
         "music": None,
         "audioTrack": None,   # set by audio.py (de-clicked speaker track); run it after props.py
-        "totalDurationInFrames": int(round(edl["kept_duration"] * fps)),
+        # frame-exact composition length = actual <Series> length = audio-track length.
+        # (round(kept_duration*fps) drifts a few frames vs Σ(endFrame-startFrame) over many cuts.)
+        "totalDurationInFrames": sum(s["endFrame"] - s["startFrame"] for s in segments),
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(props, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -248,4 +250,5 @@ def build(work: Path, out_path: Path):
 
 
 if __name__ == "__main__":
-    build(Path(sys.argv[1]), Path(sys.argv[2]))
+    media = sys.argv[3] if len(sys.argv) > 3 else "source"
+    build(Path(sys.argv[1]), Path(sys.argv[2]), media)

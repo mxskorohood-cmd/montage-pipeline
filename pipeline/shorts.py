@@ -47,12 +47,15 @@ def face_center(faces, t):
 
 
 def build(work: Path, props_dir: Path, draft: bool):
-    edl = load(work, "edl.json")
-    fps = edl["fps"]
+    # fps from edl.json when the full pipeline ran; shorts-only mode has no EDL
+    fps = load(work, "edl.json")["fps"] if (work / "edl.json").exists() else 30
+
     words = load(work, "words.json")
     faces = load(work, "faces.json")
-    shorts = load(work, "shorts.json")["shorts"]
-    preview = (props_dir.parent / "public" / "source_preview.mp4").exists()
+    data = load(work, "shorts.json")
+    shorts = data["shorts"]
+    media = data.get("media", "source")  # base media name in public/ (remakes use their own)
+    preview = (props_dir.parent / "public" / f"{media}_preview.mp4").exists()
 
     for sh in shorts:
         spans = sh["spans"]
@@ -114,7 +117,7 @@ def build(work: Path, props_dir: Path, draft: bool):
                 punch.append({"from": round(out_t(w["start"]) * fps) - 4,
                               "originY": round(fy * 100, 1)})
 
-        # b-roll inserts anchored inside this short -> shrunk card in the upper third
+        # b-roll inserts anchored inside this short; layout: third (default) / half / full
         insert_events = []
         ins_file = work / "inserts.json"
         if ins_file.exists():
@@ -137,16 +140,21 @@ def build(work: Path, props_dir: Path, draft: bool):
                         media_cache[it["file"]] = probe_frames(p, fps) if p.exists() else 120
                     f1 = min(f1, f0 + media_cache[it["file"]])
                 f1 = max(f1, f0 + 20)                   # keep on screen >=0.66s
-                insert_events.append({
+                ev = {
                     "file": f"inserts/{it['file']}",
                     "type": "video" if is_video else "image",
                     "from": f0, "to": min(f1, total),
-                })
+                }
+                if it.get("layout"):
+                    ev["layout"] = it["layout"]
+                if it.get("coverBox"):  # blur plate over burned-in subs of the fragment
+                    ev["coverBox"] = it["coverBox"]
+                insert_events.append(ev)
         insert_events.sort(key=lambda e: e["from"])
 
         props = {
-            "src": "source.mp4",
-            "previewSrc": "source_preview.mp4" if preview else None,
+            "src": f"{media}.mp4",
+            "previewSrc": f"{media}_preview.mp4" if preview else None,
             "fps": fps,
             "segments": segments,
             "words": kw,

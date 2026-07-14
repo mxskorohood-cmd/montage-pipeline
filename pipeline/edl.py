@@ -28,9 +28,9 @@ SEARCH_PAD_S = 0.150   # how far around a boundary we search for silence
 MIN_GAP_S = 0.024      # if boundary corridor is narrower, use its midpoint
 MERGE_S = 0.040        # merge keep-segments separated by less than this
 MIN_KEEP_S = 0.150     # drop keep-segments shorter than this
-MAX_PAUSE_S = 0.50     # gaps between kept words longer than this get shrunk
-KEEP_TAIL_S = 0.20     # pause left after a kept word
-KEEP_HEAD_S = 0.15     # pause left before the next kept word
+MAX_PAUSE_S = 0.35     # gaps between kept words longer than this get shrunk
+KEEP_TAIL_S = 0.12     # pause left after a kept word
+KEEP_HEAD_S = 0.10     # pause left before the next kept word
 HEAD_LEAD_S = 0.30     # silence kept before the very first word
 TAIL_LEAD_S = 0.80     # silence kept after the very last word
 

@@ -100,7 +100,8 @@ After A, **echo the chosen config back** in one short block and confirm before s
 ### 7. Do inserts exist? (`inserts.source`)
 Ask: **«Вставки уже есть — или сделать промты по тексту на основе вашего стиля?»**
 - **Уже есть** — попроси папку; проверь форматы, HEVC→прокси; заполни `work/<id>/inserts.json` (anchorWord/endWord/file).
-- **Сделать промты из текста (реком., если материала нет)** → перейти к 6–7 и сгенерировать.
+- **Сделать промты из текста (реком., если материала нет)** → задать 8–10 (стиль, плотность,
+  imagegen), генерация — скиллом `broll-gen` после Stage 1.
 - **Без вставок** — `effects.inserts=false`, дальше не спрашивать.
 
 ### 8. Insert visual style (`inserts.style`, if generating)
@@ -110,18 +111,21 @@ Ask: **«Вставки уже есть — или сделать промты �
 ### 9. Insert density (`inserts.density`)
 - **Мало** ≈ 1 вставка / 30 с · **Средне** ≈ 1 / 15 с · **Много** ≈ 1 / 8 с · **Точное число N**.
 
-### If the user wants prompts now — generate them
-1. Read `work/<id>/transcript.txt` / `words.json` (use the transcript already produced).
-2. Pick anchor phrases: concrete nouns/objects/metaphors the viewer can *see* (not abstract
-   connectives). Space them per the chosen density; avoid the accent windows (see props.py).
-3. For each anchor write a 6-part image/video prompt — **Subject + Action + Context +
-   Composition + Lighting + Style** — where **Style = the chosen insert style + brand colors**.
-   Vertical shorts → 9:16 framing; Main169 → 16:9.
-4. Write to `work/<id>/inserts_prompts.md` (human-readable: anchor phrase, timecode,
-   suggested filename, prompt) **and** a draft `work/<id>/inserts.json`
-   (`{anchorWord, endWord, file}`) so props.py can consume the files once generated.
-5. Tell the user where the files are and the exact next command
-   (`props.py` → `audio.py`). Do **not** render.
+### 10. Image generation (`imagegen`)
+Как фабрика будет ДЕЛАТЬ картинки (сами промты и генерация — скилл `broll-gen`, Stage 1.5).
+- `imagegen.provider` — чем генерить: **gemini-webapi (реком., MCP `gemini_generate_image`,
+  Nano Banana 2 + референсы стиля)** · другой инструмент (спроси какой, запиши как есть) ·
+  `manual` (пользователь генерит сам по промтам из `inserts_prompts.md`).
+- `imagegen.styleRefs` — папка эталонов стиля (реком. `assets/style-refs`, 2–4 лучших
+  прошлых вставки); передаются генератору как файлы-референсы.
+- `imagegen.animate` — оживление картинок: **`prompts` (реком.)** — скилл пишет
+  Veo/Kling-промты, пользователь генерит вручную, пайплайн подхватывает mp4
+  (вотермарка + all-intra прокси) · `off` — вставки остаются статичными.
+
+### If the user wants prompts or images now
+Prompt writing, generation, and animation all live in skill **`broll-gen`** (Stage 1.5 of
+`montage-pipeline`) — run it once Stage 1 artifacts (`words.json`/`transcript.txt`) exist.
+It consumes the `inserts.*` and `imagegen.*` config saved here. Do **not** render.
 
 ---
 
@@ -141,7 +145,8 @@ Write the collected answers here (create or update; preserve unknown keys):
   "sfx": ["keyType"],
   "remotionEffects": ["none"],
   "editStyle": "balanced",
-  "inserts": { "source": "generate", "style": ["photoreal", "on-brand"], "density": "medium" }
+  "inserts": { "source": "generate", "style": ["photoreal", "on-brand"], "density": "medium" },
+  "imagegen": { "provider": "gemini-webapi", "styleRefs": "assets/style-refs", "animate": "prompts" }
 }
 ```
 
@@ -158,6 +163,8 @@ Write the collected answers here (create or update; preserve unknown keys):
   (`filmGrain`/`vignette`/`glow`/`chromaticAberration`/`lightLeaks`/`zoomBlur`/`colorGrade`/
   `retroPrint`/`pixelDissolve`); `none` — слой эффектов не добавляем.
 - `inserts.*` → `shorts.py` / `props.py` insert anchoring + the generated prompts.
+- `imagegen.*` → скилл `broll-gen` (Stage 1.5): провайдер генерации, папка референсов стиля,
+  режим оживления (image-to-video промты + подхват mp4).
 
 End by writing `brand.config.json`, showing a one-screen summary, and stating the next step
 (run the analysis pipeline, or generate the b-roll images from `inserts_prompts.md`).

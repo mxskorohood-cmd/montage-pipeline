@@ -13,7 +13,9 @@ sides, concatenate, and write one WAV spanning the whole timeline. Main169 then
 mutes the `<Video>` and plays this track via `<Audio>` (see `audioTrack` prop).
 
 This is NOT loudness/tone processing (which the project forbids): the voice is
-untouched except for a 6 ms de-click ramp at cut edges.
+untouched except at cut edges, where each segment is hard-gated (silenced) for
+6 ms to drop the breath/click on the splice, then de-clicked with a 6 ms
+raised-cosine ramp over the next 6 ms.
 
 Usage: python audio.py <props.json> [source_media]
   source_media defaults to <props>/../../public/<props.src> (source.mp4).
@@ -28,7 +30,8 @@ import numpy as np
 import soundfile as sf
 
 SR = 48000          # 48000 / 30 fps = 1600 samples/frame (integer -> exact sync)
-FADE_MS = 6         # de-click ramp length at each segment edge
+GATE_MS = 6         # hard-silence at each segment edge (drops breath/click on splice)
+FADE_MS = 6         # de-click ramp length just inside the gate
 
 
 def cosine_window(n: int) -> np.ndarray:
@@ -45,7 +48,8 @@ def build(props_path: Path, source: Path) -> None:
     segs = props["segments"]
     assert SR % fps == 0, f"SR {SR} not divisible by fps {fps}"
     spf = SR // int(fps)                       # samples per frame (1600)
-    fade = round(FADE_MS / 1000 * SR)          # 288 samples
+    gate = round(GATE_MS / 1000 * SR)          # 288 samples of hard silence
+    fade = round(FADE_MS / 1000 * SR)          # 288 samples of de-click ramp
 
     public = props_path.parent.parent / "public"
     out_name = f"audio_{props_path.stem}.wav"   # main169.json -> audio_main169.wav
@@ -72,10 +76,15 @@ def build(props_path: Path, source: Path) -> None:
         max_end = max(max_end, b)
         clip = np.array(y[a:b], dtype=np.float32)
         n = len(clip)
-        f = min(fade, n // 2)                  # guard very short segments
+        half = n // 2                          # guard very short segments
+        g = min(gate, half)                    # hard-silence the outer GATE_MS
+        if g > 0:
+            clip[:g] = 0.0
+            clip[-g:] = 0.0
+        f = min(fade, half - g)                # de-click ramp just inside the gate
         if f > 0:
-            clip[:f] *= cosine_window(f)
-            clip[-f:] *= cosine_window(f)[::-1]
+            clip[g:g + f] *= cosine_window(f)
+            clip[n - g - f:n - g] *= cosine_window(f)[::-1]
         parts.append(clip)
 
     track = np.concatenate(parts) if parts else np.zeros(0, dtype=np.float32)
@@ -92,7 +101,8 @@ def build(props_path: Path, source: Path) -> None:
     props_path.write_text(json.dumps(props, ensure_ascii=False, indent=1),
                           encoding="utf-8")
     print(f"OK {out_name}: {len(track)} samples = {len(track)/SR:.2f}s, "
-          f"{len(segs)} segments, {FADE_MS}ms fades, audioTrack set in props")
+          f"{len(segs)} segments, {GATE_MS}ms gate + {FADE_MS}ms fades, "
+          f"audioTrack set in props")
 
 
 if __name__ == "__main__":

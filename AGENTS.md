@@ -1,3 +1,5 @@
+<!-- AUTO-GENERATED from CLAUDE.md by sync-agents-md.js — правь CLAUDE.md, не этот файл -->
+
 # Montage — пайплайн автомонтажа видео
 
 ## Старт (первым делом при открытии проекта)

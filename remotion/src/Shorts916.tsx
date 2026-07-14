@@ -27,6 +27,10 @@ export type ShortInsert = {
   type: "image" | "video";
   from: number;
   to: number;
+  layout?: "third" | "half" | "full"; // how much of the canvas the insert takes
+  // zone of burned-in subs/watermark to hide, relative 0..1 of the insert area;
+  // covered with a blur plate, our karaoke renders on top of everything anyway
+  coverBox?: { x: number; y: number; w: number; h: number };
 };
 
 export type ShortsProps = {
@@ -43,8 +47,14 @@ export type ShortsProps = {
 
 const CANVAS_H = 1920;
 const VIDEO_W = Math.round((CANVAS_H * 16) / 9); // 3413: source scaled to fill height
-const INSERT_H = Math.round(CANVAS_H / 3); // 640: insert fills the full upper third
-const INSERT_SHIFT = 600; // px the speaker moves down when an insert is active
+// Per-layout insert height and how far the speaker shifts down to stay clear.
+// "full" covers the speaker entirely (voice keeps playing) — no shift needed.
+const INSERT_LAYOUT = {
+  third: { height: Math.round(CANVAS_H / 3), shift: 600 },
+  half: { height: Math.round(CANVAS_H / 2), shift: 900 },
+  full: { height: CANVAS_H, shift: 0 },
+} as const;
+const layoutOf = (i: ShortInsert) => INSERT_LAYOUT[i.layout ?? "third"];
 
 const PAPER = "#F5F5F5";
 const SCARLET = "#E5484D";
@@ -96,7 +106,8 @@ const activeInsertAt = (
   return { insert: active, amount };
 };
 
-// b-roll fills the entire upper third, edge-to-edge (no card, no border).
+// b-roll fills the top of the canvas edge-to-edge (no card, no border);
+// height comes from the insert's layout: third / half / full-screen.
 const InsertTop: React.FC<{ insert: ShortInsert | null; opacity: number }> = ({
   insert,
   opacity,
@@ -111,7 +122,7 @@ const InsertTop: React.FC<{ insert: ShortInsert | null; opacity: number }> = ({
         top: 0,
         left: 0,
         right: 0,
-        height: INSERT_H,
+        height: layoutOf(insert).height,
         overflow: "hidden",
         opacity,
         backgroundColor: "#17171A",
@@ -132,6 +143,19 @@ const InsertTop: React.FC<{ insert: ShortInsert | null; opacity: number }> = ({
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       )}
+      {insert.coverBox ? (
+        <div
+          style={{
+            position: "absolute",
+            left: `${insert.coverBox.x * 100}%`,
+            top: `${insert.coverBox.y * 100}%`,
+            width: `${insert.coverBox.w * 100}%`,
+            height: `${insert.coverBox.h * 100}%`,
+            backdropFilter: "blur(26px)",
+            backgroundColor: "rgba(20, 20, 23, 0.55)",
+          }}
+        />
+      ) : null}
     </div>
   );
 };
@@ -211,7 +235,7 @@ export const Shorts916: React.FC<ShortsProps> = ({
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
       <AbsoluteFill
         style={{
-          transform: `translateY(${insertAmount * INSERT_SHIFT}px) scale(${scale})`,
+          transform: `translateY(${insertAmount * (activeInsert ? layoutOf(activeInsert).shift : 0)}px) scale(${scale})`,
           transformOrigin: `50% ${originY}%`,
         }}
       >
